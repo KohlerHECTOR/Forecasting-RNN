@@ -117,7 +117,7 @@ def testing(data_test, batch_size, epoch, rnn, writer):
             print("assertion error")
 
     writer.add_scalar('Loss/test', loss_all_batches, epoch)
-    print(f"Epoch {epoch}: loss {loss_all_batches}")
+    print(f"Epoch {epoch}: loss_test {loss_all_batches}")
 
     # Score
     score = 0
