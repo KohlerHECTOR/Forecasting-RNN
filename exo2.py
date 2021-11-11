@@ -1,4 +1,4 @@
-from utils import RNN, device,SampleMetroDataset
+from utils import RNN, device,SampleMetroDataset, testing
 import torch
 from torch.utils.data import DataLoader
 from torch.utils.tensorboard import SummaryWriter
@@ -37,9 +37,9 @@ CEL = CEL.to(device)
 
 
 # Train
-count = 0
-epoch = 20 # 20 epochs, batch de 18 dure environe 4 mins et score de 53 %
+epoch = 40 # 20 epochs, batch de 18 dure environe 4 mins et score de 53 %
 for n_iter in range(epoch):
+    loss_all_batches = 0
     for x,y in data_train:
         try:
             assert x.size(0) == BATCH_SIZE # last batch is of size 4
@@ -48,47 +48,18 @@ for n_iter in range(epoch):
             yhat = rnn.decode(rnn.hidden_states[-1])
             y = y.to(device)
             loss = CEL.forward(yhat, y)
+            loss_all_batches += loss
 
-            writer.add_scalar('Loss/train', loss, count)
-            print(f"Itérations {count}: loss {loss}")
+
 
             optimizer.zero_grad()
             loss.backward()
             optimizer.step()
             rnn.reinit_states()
-            count +=1
+
         except AssertionError:
-            continue
+            print("assertion error")
 
-# Test
-predictions = [] # Liste de listes (liste de predictions pour chaque batch)
-tests = [] # Liste de listes (liste de targets pour chaque batch)
-count = 0
-for x,y in data_test:
-    try:
-        assert x.size(0) == BATCH_SIZE
-        rnn.forward(x)
-        yhat = rnn.decode(rnn.hidden_states[-1])
-        preds = torch.argmax(yhat, dim = 1) # Get predicted class
-        predictions.append(preds)
-        y = y.to(device)
-        tests.append(y)
-
-        loss = CEL.forward(yhat, y)
-        writer.add_scalar('Loss/test', loss, count)
-        print(f"Itérations {count}: loss {loss}")
-        count += 1
-
-        rnn.reinit_states()
-    except AssertionError:
-        continue
-
-# Score
-score = 0
-for i, preds in enumerate(predictions):
-    for j, pred in enumerate(preds):
-        if pred == tests[i][j]:
-            score += 1
-
-score /= (len(predictions) * BATCH_SIZE)
-print("TEST SCORE = ", score) # 0 - 1 error
+    writer.add_scalar('Loss/train', loss_all_batches, n_iter)
+    print(f"Epoch {n_iter}: loss {loss_all_batches}")
+    testing(data_test, BATCH_SIZE, n_iter, rnn, writer)

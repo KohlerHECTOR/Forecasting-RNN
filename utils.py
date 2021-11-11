@@ -91,3 +91,42 @@ class ForecastMetroDataset(Dataset):
         timeslot = i // self.nb_days
         day = i % self.nb_days
         return self.data[day,timeslot:(timeslot+self.length-1)],self.data[day,(timeslot+1):(timeslot+self.length)]
+
+# Test
+def testing(data_test, batch_size, epoch, rnn, writer):
+    predictions = [] # Liste de listes (liste de predictions pour chaque batch)
+    tests = [] # Liste de listes (liste de targets pour chaque batch)
+    loss_all_batches = 0
+    for x,y in data_test:
+        try:
+            assert x.size(0) == batch_size
+            y = y.to(device)
+            tests.append(y)
+
+            with torch.no_grad():
+                rnn.forward(x)
+                yhat = rnn.decode(rnn.hidden_states[-1])
+                loss = CEL.forward(yhat, y)
+
+            loss_all_batches += loss
+            preds = torch.argmax(yhat, dim = 1) # Get predicted class
+            predictions.append(preds)
+
+            rnn.reinit_states()
+        except AssertionError:
+            print("assertion error")
+
+    writer.add_scalar('Loss/test', loss_all_batches, epoch)
+    print(f"Epoch {epoch}: loss {loss_all_batches}")
+
+    # Score
+    score = 0
+    for i, preds in enumerate(predictions):
+        for j, pred in enumerate(preds):
+            if pred == tests[i][j]:
+                score += 1
+
+    score /= (len(predictions) * batch_size)
+    writer.add_scalar('Precision/test', score, epoch)
+    print(f"Epoch {epoch}: precision {score}")
+    # print("TEST SCORE = ", score) # 0 - 1 error
