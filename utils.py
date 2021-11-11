@@ -4,8 +4,6 @@ from torch.utils.data import Dataset
 
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
-CEL = nn.CrossEntropyLoss()
-CEL = CEL.to(device)
 
 class RNN(nn.Module):
     #  TODO:  Implémenter comme décrit dans la question 1
