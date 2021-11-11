@@ -4,6 +4,8 @@ from torch.utils.data import Dataset
 
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
+# CEL = nn.CrossEntropyLoss()
+# CEL = CEL.to(device)
 
 class RNN(nn.Module):
     #  TODO:  Implémenter comme décrit dans la question 1
@@ -91,7 +93,7 @@ class ForecastMetroDataset(Dataset):
         return self.data[day,timeslot:(timeslot+self.length-1)],self.data[day,(timeslot+1):(timeslot+self.length)]
 
 # Test
-def testing(data_test, batch_size, epoch, rnn, writer):
+def testing(data_test, batch_size, epoch, rnn, writer, loss_func):
     predictions = [] # Liste de listes (liste de predictions pour chaque batch)
     tests = [] # Liste de listes (liste de targets pour chaque batch)
     loss_all_batches = 0
@@ -104,7 +106,7 @@ def testing(data_test, batch_size, epoch, rnn, writer):
             with torch.no_grad():
                 rnn.forward(x)
                 yhat = rnn.decode(rnn.hidden_states[-1])
-                loss = CEL.forward(yhat, y)
+                loss = loss_func.forward(yhat, y)
 
             loss_all_batches += loss
             preds = torch.argmax(yhat, dim = 1) # Get predicted class
@@ -128,3 +130,30 @@ def testing(data_test, batch_size, epoch, rnn, writer):
     writer.add_scalar('Precision/test', score, epoch)
     print(f"Epoch {epoch}: precision {score}")
     # print("TEST SCORE = ", score) # 0 - 1 error
+
+# Test
+def testing_forecast(data_test, batch_size, epoch, rnn, writer, loss_func, HYPERPARAMS):
+    CLASSES, LENGTH, DIM_INPUT = HYPERPARAMS
+    loss_all_batches = 0
+    for x,y in data_test:
+        x = x.reshape((CLASSES, LENGTH - 1, DIM_INPUT))
+        y = y.reshape((CLASSES, LENGTH - 1, DIM_INPUT))
+        try:
+            assert x.size(0) == CLASSES
+            y = y.to(device)
+
+            with torch.no_grad():
+                rnn.forward(x)
+                # MANY TO MANY ARCHITECTURE
+                yhat = rnn.decode(rnn.hidden_states[1:])
+                yhat = yhat.reshape((CLASSES, LENGTH - 1, DIM_INPUT))
+
+                loss = loss_func.forward(yhat, y)
+
+            loss_all_batches += loss
+            rnn.reinit_states()
+        except AssertionError:
+            print("assertion error")
+
+    writer.add_scalar('Loss/test', loss_all_batches, epoch)
+    print(f"Epoch {epoch}: loss_test {loss_all_batches}")
