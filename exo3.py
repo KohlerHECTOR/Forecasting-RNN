@@ -37,7 +37,7 @@ for n_iter in range(epoch):
         try:
             assert x.size(0) == CLASSES # last batch is of size 4
             rnn.forward(x)
-            # MANY TO ONE ARCHITECTURE
+            # MANY TO MANY ARCHITECTURE
             yhat = rnn.decode(rnn.hidden_states[1:])
             yhat = yhat.reshape((CLASSES, LENGTH - 1, DIM_INPUT))
             y = y.to(device)
